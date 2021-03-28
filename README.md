@@ -18,7 +18,7 @@ com.phronemophobic/reveal-treemap {:mvn/version "0.1.3"}
 ### Load the `exception` reveal action
 
 ```
-(require 'com.phronemophobic.reveal-treemap)
+(require 'com.phronemophobic.reveal-plugin.reveal-exception)
 ```
 
 
