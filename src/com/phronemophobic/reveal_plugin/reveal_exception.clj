@@ -4,6 +4,7 @@
             [membrane.basic-components :as basic]
             [membrane.component :refer
              [defui defeffect]]
+            [clojure.string :as str]
             [vlaaad.reveal.ext :as rx]
             [clojure.repl :refer [source demunge]
              :as repl]
@@ -14,16 +15,32 @@
             [clojure.java.shell :refer [sh]])
   (:import javafx.geometry.BoundingBox
            (java.io LineNumberReader InputStreamReader PushbackReader)
+           (java.net URL)
            clojure.lang.RT)
   (:gen-class))
 
 
-;; (clj-stacktrace/parse-exception)
-
 (defn foo []
   (/ 1 0))
 
-;; (foo)
+;; Adapted from:
+;; https://github.com/clojure-emacs/orchard/blob/9f0c7d53eafd656b46638ed322992faa70862070/src/orchard/namespace.clj#L29
+(defn canonical-source
+  "Returns the URL of the source file for the namespace object or symbol,
+  according to the canonical naming convention, if present on the classpath."
+  ^URL [ns]
+  (let [prefix (-> (str ns)
+                 (str/replace "-" "_")
+                 (str/replace "." "/"))]
+    (some
+     (fn [suffix]
+       (let [path (str prefix suffix)]
+         (when (io/resource path)
+           path)))
+     [".clj"
+      ".cljc"
+      ".cljs"])))
+
 
 (defn parse-stacktrace-element
   "Returns a (possibly unmunged) string representation of a StackTraceElement"
@@ -42,6 +59,27 @@
       :filename (.getFileName el)
       :lineno (.getLineNumber el)})))
 
+(defn source-path-via-meta* [elem]
+  (when-let [sym (:sym elem)]
+    (when-let [v (resolve sym)]
+      (when-let [m (meta v)]
+        {:file (:file m)
+         :line (:line m)}))))
+
+(defn source-path-via-ns* [elem]
+  (when-let [sym (:sym elem)]
+    (when-let [ns-name (namespace sym)]
+      (when-let [ns-sym (symbol ns-name)]
+        (when (the-ns ns-sym)
+          (when-let [line (:lineno elem)]
+            {:file (canonical-source ns-sym)
+             :line line})))))
+  )
+
+(defn find-source-path [elem]
+  (or (source-path-via-meta* elem)
+      (source-path-via-ns* elem)))
+
 (defn source-fn
   "Returns a string of the source code for the given symbol, if it can
   find it.  This requires that the symbol resolve to a Var defined in
@@ -50,43 +88,48 @@
   convenient.
 
   Example: (source-fn 'filter)"
-  [x]
-  (when-let [v (resolve x)]
-    (when-let [filepath (:file (meta v))]
-      (when-let [strm (or (.getResourceAsStream (RT/baseLoader) filepath)
-                          (io/input-stream filepath))]
-        (with-open [rdr (LineNumberReader. (InputStreamReader. strm))]
-          (dotimes [_ (dec (:line (meta v)))] (.readLine rdr))
-          (let [text (StringBuilder.)
-                pbr (proxy [PushbackReader] [rdr]
-                      (read [] (let [i (proxy-super read)]
-                                 (.append text (char i))
-                                 i)))
-                read-opts (if (.endsWith ^String filepath "cljc") {:read-cond :allow} {})]
-            (if (= :unknown *read-eval*)
-              (throw (IllegalStateException. "Unable to read source while *read-eval* is :unknown."))
-              (read read-opts (PushbackReader. pbr)))
-            (str text)))))))
+  [elem]
+  (when-let [{filepath :file
+              line :line} (find-source-path elem)]
+    (when-let [strm (or (.getResourceAsStream (RT/baseLoader) filepath)
+                        (io/input-stream filepath))]
+      (with-open [rdr (LineNumberReader. (InputStreamReader. strm))]
+        (dotimes [_ (dec line)] (.readLine rdr))
+        (let [text (StringBuilder.)
+              pbr (proxy [PushbackReader] [rdr]
+                    (read [] (let [i (proxy-super read)]
+                               (.append text (char i))
+                               i)))
+              read-opts (if (.endsWith ^String filepath "cljc") {:read-cond :allow} {})]
+          (if (= :unknown *read-eval*)
+            (throw (IllegalStateException. "Unable to read source while *read-eval* is :unknown."))
+            (read read-opts (PushbackReader. pbr)))
+          (str text))))))
 
 (defeffect ::open-in-editor [elem]
+;; (cider--find-var "membrane.ui/vertical-layout" 120)
   (when-let [sym (:sym elem)]
-    (when-let [v (resolve sym)]
-      (when-let [filepath (:file (meta v))]
-        (let [f (io/file filepath)]
-          (when (.exists f)
-            (when-let [line (:line (meta v))]
-              (sh "emacsclient"  "--no-wait" (str "+" line) (.getCanonicalPath f)))))))))
+    (if-let [v (resolve sym)]
+      (sh "emacsclient"  "--no-wait" "-e" (str "(cider--find-var " "\"" (pr-str sym) "\"" ")"))
+      (when-let [ns-name (namespace sym)]
+        (when-let [ns-sym (symbol ns-name)]
+          (when (the-ns ns-sym)
+            (when-let [line (:lineno elem)]
+              (sh "emacsclient"  "--no-wait" "-e" (str "(cider--find-var " "\"" (pr-str ns-sym) "\"" line")")))))))))
 
+
+
+(def source-fn-memo (memoize source-fn))
 
 (defui exception-ui [{:keys [exception hover-source selected-source selected-elem]}]
   (let [st (:stacktrace exception)]
     (ui/horizontal-layout
      (apply
       ui/vertical-layout
-      (for [{:keys [sym class method filename lineno stacktrace-element]
-             :as elem} st
+      (for [[i {:keys [sym class method filename lineno stacktrace-element]
+                :as elem}] (map-indexed vector st)
             :when sym]
-        (let [hover? (get extra [:hover? stacktrace-element])]
+        (let [hover? (get extra [:hover? i])]
           [(basic/on-mouse-out
             {:hover? hover?
              :mouse-out
@@ -96,15 +139,16 @@
              (ui/on
               :mouse-move
               (fn [pos]
-                [[:set $hover-source (source-fn sym)]])
+                [[:set $hover-source (source-fn-memo elem)]])
               :mouse-down
               (fn [pos]
-                [[:set $selected-source (source-fn sym)]
+                [[:set $selected-source (source-fn-memo elem)]
                  [:set $selected-elem elem]])
               (ui/label sym))})])))
      (when-let [source (or hover-source selected-source)]
        (ui/vertical-layout
-        (when selected-elem
+        (when (and selected-elem
+                   (find-source-path selected-elem))
           (basic/button {:text "open"
                          :on-click
                          (fn []
@@ -125,9 +169,10 @@
                                              state
                                              #(swap! app-state %))]
                 {:fx/type rx/popup-view
-                 #_#_:select (fn [e]
+                 :select (fn [e]
+
                            (condp instance? e
-                             javafx.scene.input.KeyEvent
+                             #_#_javafx.scene.input.KeyEvent
                              (when-let [rect (-> state :select-rect :rect)]
                                (let [node (.getTarget e)
                                      local-bounds (BoundingBox. (:x rect)
@@ -143,17 +188,17 @@
                              (let [node (.getTarget e)
                                    x (.getX e)
                                    y (.getY e)
-                                   rect (->> (ui/mouse-down (apply treemap-clj.view/treemap-explore
-                                                                   (sequence cat state))
-                                                            [x y])
-                                             (some (fn [[type & args :as intent]]
-                                                     (when (= type :treemap-clj.view/select-rect)
-                                                       (nth intent 2)))))
+                                   intents (->> (ui/mouse-down (exception-ui @app-state) [x y]))
                                    local-bounds (BoundingBox. x y 10 10)
                                    bounds (.localToScreen node local-bounds)]
-                               (when rect
-                                 {:bounds bounds
-                                  :value (:obj rect)}))))
+                               (when-let [selected-elem (->> intents
+                                                             (filter (fn [[intent & args]]
+                                                                       (= intent :set)))
+                                                             (some (fn [[_set $ref v]]
+                                                                     (when (= $ref '[(keypath :selected-elem)])
+                                                                       v))))]
+                                 {:value selected-elem
+                                  :bounds bounds}))))
                  :desc {:fx/type :scroll-pane
                         :fit-to-width true
                         :content view}}))}))))
@@ -161,10 +206,3 @@
 
 
 
-
-(defn bar []
-  (foo))
-
-
-
-(bar)
