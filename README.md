@@ -2,6 +2,7 @@
 
 A reveal plugin for inspecting stack traces.
 
+![Example](/media/reveal-exception.gif?raw=true)
 
 ## Usage
 
