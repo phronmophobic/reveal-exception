@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.phronemophobic.reveal-plugin</groupId>
   <artifactId>reveal-exception</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <name>com.phronemophobic.reveal-plugin/reveal-exception</name>
   <description>FIXME: my new application.</description>
   <url>https://github.com/com.phronemophobic.reveal-plugin/reveal-exception</url>
@@ -22,7 +22,7 @@
     <url>https://github.com/com.phronemophobic.reveal-plugin/reveal-exception</url>
     <connection>scm:git:git://github.com/com.phronemophobic.reveal-plugin/reveal-exception.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/com.phronemophobic.reveal-plugin/reveal-exception.git</developerConnection>
-    <tag>v1.0.0</tag>
+    <tag>v1.0.1</tag>
   </scm>
   <dependencies>
     <dependency>
