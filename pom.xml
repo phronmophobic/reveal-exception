@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.phronemophobic.reveal-plugin</groupId>
   <artifactId>reveal-exception</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
   <name>com.phronemophobic.reveal-plugin/reveal-exception</name>
   <description>FIXME: my new application.</description>
   <url>https://github.com/com.phronemophobic.reveal-plugin/reveal-exception</url>
@@ -22,13 +22,28 @@
     <url>https://github.com/com.phronemophobic.reveal-plugin/reveal-exception</url>
     <connection>scm:git:git://github.com/com.phronemophobic.reveal-plugin/reveal-exception.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/com.phronemophobic.reveal-plugin/reveal-exception.git</developerConnection>
-    <tag>v0.1.0-SNAPSHOT</tag>
+    <tag>v1.0.0</tag>
   </scm>
   <dependencies>
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
       <version>1.10.2</version>
+    </dependency>
+    <dependency>
+      <groupId>com.phronemophobic</groupId>
+      <artifactId>membrane</artifactId>
+      <version>0.9.23-beta</version>
+    </dependency>
+    <dependency>
+      <groupId>clj-stacktrace</groupId>
+      <artifactId>clj-stacktrace</artifactId>
+      <version>0.2.8</version>
+    </dependency>
+    <dependency>
+      <groupId>vlaaad</groupId>
+      <artifactId>reveal</artifactId>
+      <version>RELEASE</version>
     </dependency>
   </dependencies>
   <build>
@@ -38,10 +53,6 @@
     <repository>
       <id>clojars</id>
       <url>https://repo.clojars.org/</url>
-    </repository>
-    <repository>
-      <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
     </repository>
   </repositories>
   <distributionManagement>
