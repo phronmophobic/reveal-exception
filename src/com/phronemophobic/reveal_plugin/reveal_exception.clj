@@ -142,11 +142,13 @@
              (ui/on
               :mouse-move
               (fn [pos]
-                [[:set $hover-source (source-fn-memo elem)]])
+                (when-let [source (source-fn-memo elem)]
+                  [[:set $hover-source source]]))
               :mouse-down
               (fn [pos]
-                [[:set $selected-source (source-fn-memo elem)]
-                 [:set $selected-elem elem]])
+                (when-let [source (source-fn-memo elem)]
+                  [[:set $selected-source source]
+                   [:set $selected-elem elem]]))
               (ui/label sym))})])))
      (when-let [source (or hover-source selected-source)]
        (ui/vertical-layout
