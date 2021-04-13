@@ -103,7 +103,10 @@
               read-opts (if (.endsWith ^String filepath "cljc") {:read-cond :allow} {})]
           (if (= :unknown *read-eval*)
             (throw (IllegalStateException. "Unable to read source while *read-eval* is :unknown."))
-            (read read-opts (PushbackReader. pbr)))
+            (try
+              (read read-opts (PushbackReader. pbr))
+              (catch Exception e
+                nil)))
           (str text))))))
 
 (defeffect ::open-in-editor [elem]
