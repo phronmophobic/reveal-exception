@@ -126,39 +126,41 @@
 
 (defui exception-ui [{:keys [exception hover-source selected-source selected-elem]}]
   (let [st (:stacktrace exception)]
-    (ui/horizontal-layout
-     (apply
-      ui/vertical-layout
-      (for [[i {:keys [sym class method filename lineno stacktrace-element]
-                :as elem}] (map-indexed vector st)
-            :when sym]
-        (let [hover? (get extra [:hover? i])]
-          [(basic/on-mouse-out
-            {:hover? hover?
-             :mouse-out
-             (fn []
-               [[:set $hover-source nil]])
-             :body
-             (ui/on
-              :mouse-move
-              (fn [pos]
-                (when-let [source (source-fn-memo elem)]
-                  [[:set $hover-source source]]))
-              :mouse-down
-              (fn [pos]
-                (when-let [source (source-fn-memo elem)]
-                  [[:set $selected-source source]
-                   [:set $selected-elem elem]]))
-              (ui/label sym))})])))
-     (when-let [source (or hover-source selected-source)]
-       (ui/vertical-layout
-        (when (and selected-elem
-                   (find-source-path selected-elem))
-          (basic/button {:text "open"
-                         :on-click
-                         (fn []
-                           [[::open-in-editor selected-elem]])}))
-        (ui/label source))))))
+    (ui/padding
+     5 5
+     (ui/horizontal-layout
+      (apply
+       ui/vertical-layout
+       (for [[i {:keys [sym class method filename lineno stacktrace-element]
+                 :as elem}] (map-indexed vector st)
+             :when sym]
+         (let [hover? (get extra [:hover? i])]
+           [(basic/on-mouse-out
+             {:hover? hover?
+              :mouse-out
+              (fn []
+                [[:set $hover-source nil]])
+              :body
+              (ui/on
+               :mouse-move
+               (fn [pos]
+                 (when-let [source (source-fn-memo elem)]
+                   [[:set $hover-source source]]))
+               :mouse-down
+               (fn [pos]
+                 (when-let [source (source-fn-memo elem)]
+                   [[:set $selected-source source]
+                    [:set $selected-elem elem]]))
+               (ui/label sym))})])))
+      (when-let [source (or hover-source selected-source)]
+        (ui/vertical-layout
+         (when (and selected-elem
+                    (find-source-path selected-elem))
+           (basic/button {:text "open"
+                          :on-click
+                          (fn []
+                            [[::open-in-editor selected-elem]])}))
+         (ui/label source)))))))
 
 
 (rx/defaction ::exception [obj]
