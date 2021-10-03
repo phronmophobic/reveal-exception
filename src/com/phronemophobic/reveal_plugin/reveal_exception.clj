@@ -87,7 +87,7 @@
   it can't find the source.  For most REPL usage, 'source' is more
   convenient.
 
-  Example: (source-fn 'filter)"
+  Example: (source-fn {:sym 'filter})"
   [elem]
   (when-let [{filepath :file
               line :line} (find-source-path elem)]
